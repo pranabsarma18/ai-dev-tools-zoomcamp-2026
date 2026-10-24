@@ -1,6 +1,6 @@
 # AI Developer Tools Zoomcamp 2026
 
-A hands-on learning journey through modern AI developer tools, covering everything from LLM APIs and prompt engineering to agent frameworks, RAG pipelines, and production deployment.
+A hands-on learning journey through modern AI developer tools — from AI-native workflows and LLM APIs to agent frameworks, RAG pipelines, and production deployment.
 
 ## 📚 Course Overview
 
@@ -10,11 +10,19 @@ This repository tracks progress, notes, projects, and experiments throughout the
 
 ```
 ai-dev-tools-zoomcamp-2026/
-├── README.md          # This file
-├── .gitignore         # Python, Jupyter, env exclusions
-└── _docs/
-    └── plan.md        # Full course plan and learning roadmap
+├── README.md                    # This file
+├── .gitignore                   # Python, Jupyter, env exclusions
+└── 01-ai-native-workflow/       # Module 01: AI-Native Workflow
+    ├── README.md                # Module overview and homework project details
+    └── _docs/
+        └── plan.md              # Brainstorming notes and decisions
 ```
+
+## 📦 Modules
+
+| # | Module | Description |
+|---|--------|-------------|
+| 01 | [AI-Native Workflow](./01-ai-native-workflow/) | Using AI tools to plan and build a project from scratch. Homework: Shared Household Chores PWA |
 
 ## 🚀 Getting Started
 
@@ -24,25 +32,7 @@ ai-dev-tools-zoomcamp-2026/
    cd ai-dev-tools-zoomcamp-2026
    ```
 
-2. Create a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. Copy the environment template and fill in your API keys:
-   ```bash
-   cp .env.example .env
-   ```
-
-## 📋 Plan
-
-See [`_docs/plan.md`](./_docs/plan.md) for the full learning roadmap and module breakdown.
-
-## 🤝 Contributing
-
-This is a personal learning repository. Issues and discussions are welcome!
+2. Navigate to a module and follow its README for setup instructions.
 
 ## 📄 License
 
