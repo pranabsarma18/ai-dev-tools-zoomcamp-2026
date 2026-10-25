@@ -58,3 +58,17 @@ A family-focused, account-based **Progressive Web App (PWA)** that helps househo
 └── _docs/
     └── plan.md        # Full brainstorming notes and decisions
 ```
+
+## Development
+
+Run the development server:
+
+```bash
+uv run python manage.py runserver
+```
+
+Run the test suite:
+
+```bash
+uv run python manage.py test
+```
