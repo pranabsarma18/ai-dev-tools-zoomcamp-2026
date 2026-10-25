@@ -12,6 +12,7 @@ from .forms import HouseholdForm, JoinHouseholdForm, ChoreForm
 from .rotation import current_responsible_index
 from .periods import get_chore_status, get_period_delta
 from .points import award_completion_points, award_verification_bonus
+from .streaks import increment_streak
 
 
 def index(request):
@@ -327,6 +328,7 @@ def complete_chore(request, pk, chore_pk):
 
     completion = ChoreCompletion.objects.create(chore=chore, completed_by=request.user)
     award_completion_points(completion)
+    increment_streak(completion)
 
     # Advance next_due_date by one period
     delta = get_period_delta(chore.frequency)

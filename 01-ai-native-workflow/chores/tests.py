@@ -1090,6 +1090,120 @@ class PointsTrackingTest(TestCase):
         self.assertEqual(self.member_membership.points, 27)
 
 
+class StreaksTrackingTest(TestCase):
+    """Tests for streaks tracking and reset behavior."""
+
+    def setUp(self):
+        from chores.streaks import increment_streak, reset_streak_for_overdue_chore
+        self.increment_streak = increment_streak
+        self.reset_streak_for_overdue_chore = reset_streak_for_overdue_chore
+
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.owner_membership = Membership.objects.create(household=self.household, user=self.owner)
+        self.member_membership = Membership.objects.create(household=self.household, user=self.member)
+
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+            rotation_members=[self.member.pk],
+        )
+
+    def test_completion_increments_streak_consecutively(self):
+        """Each completion increments current_streak (1, 2, 3 ...)."""
+        self.assertEqual(self.member_membership.current_streak, 0)
+
+        comp1 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        self.increment_streak(comp1)
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.current_streak, 1)
+
+        comp2 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        self.increment_streak(comp2)
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.current_streak, 2)
+
+    def test_another_member_completion_does_not_affect_first_member(self):
+        """Another member completing a different chore does not affect first member's streak."""
+        # Member completes chore, gets streak = 1
+        comp1 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        self.increment_streak(comp1)
+
+        # Owner completes a different chore
+        owner_chore = Chore.objects.create(
+            household=self.household,
+            title="Cook Dinner",
+            frequency=Chore.Frequency.DAILY,
+            point_value=15,
+            next_due_date=date.today(),
+            rotation_members=[self.owner.pk],
+        )
+        owner_comp = ChoreCompletion.objects.create(chore=owner_chore, completed_by=self.owner)
+        self.increment_streak(owner_comp)
+
+        self.member_membership.refresh_from_db()
+        self.owner_membership.refresh_from_db()
+
+        self.assertEqual(self.member_membership.current_streak, 1)
+        self.assertEqual(self.owner_membership.current_streak, 1)
+
+    def test_carry_forward_resets_streak_for_assigned_member_who_missed(self):
+        """carry_forward_chores resets current_streak to 0 for assigned member who missed."""
+        from django.core.management import call_command
+        import io
+
+        # Give member streak = 3
+        self.member_membership.current_streak = 3
+        self.member_membership.save()
+
+        # Set chore due date in the past with no completion
+        self.chore.next_due_date = date(2026, 11, 1)
+        self.chore.save()
+
+        out = io.StringIO()
+        call_command("carry_forward_chores", date="2026-11-05", stdout=out)
+
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.current_streak, 0)
+
+    def test_streak_not_reset_when_chore_has_completion(self):
+        """Streak is not reset if a valid completion exists for the period."""
+        from django.core.management import call_command
+        from django.utils import timezone
+        import io
+
+        self.member_membership.current_streak = 3
+        self.member_membership.save()
+
+        self.chore.next_due_date = date(2026, 11, 1)
+        self.chore.save()
+
+        comp = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        ChoreCompletion.objects.filter(pk=comp.pk).update(
+            completed_at=timezone.make_aware(datetime(2026, 11, 1, 14, 0))
+        )
+
+        out = io.StringIO()
+        call_command("carry_forward_chores", date="2026-11-05", stdout=out)
+
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.current_streak, 3)
+
+    def test_complete_chore_view_increments_streak(self):
+        """POSTing to complete_chore view increments current_streak."""
+        self.client.login(username="member1", password="Password123!")
+        self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk})
+        )
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.current_streak, 1)
+
+
+
 
 
 

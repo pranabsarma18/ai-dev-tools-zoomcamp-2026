@@ -2,6 +2,7 @@ from datetime import date, datetime
 from django.core.management.base import BaseCommand
 from chores.models import Chore
 from chores.periods import chore_has_completion_for_period
+from chores.streaks import reset_streak_for_overdue_chore
 
 
 class Command(BaseCommand):
@@ -29,6 +30,8 @@ class Command(BaseCommand):
             if not chore_has_completion_for_period(chore):
                 # Chore is overdue and not completed
                 # Do NOT advance next_due_date
+                # Reset streak for assigned member
+                reset_streak_for_overdue_chore(chore)
                 overdue_count += 1
                 self.stdout.write(
                     f"Chore '{chore.title}' is overdue as of {reference_date}"

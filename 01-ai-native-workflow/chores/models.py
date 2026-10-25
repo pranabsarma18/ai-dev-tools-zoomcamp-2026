@@ -43,6 +43,7 @@ class Membership(models.Model):
     )
     joined_at = models.DateTimeField(auto_now_add=True)
     points = models.PositiveIntegerField(default=0)
+    current_streak = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = [("household", "user")]
