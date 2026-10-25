@@ -1,0 +1,58 @@
+{% extends "chores/base.html" %}
+
+{% block title %}Board — {{ household.name }}{% endblock %}
+
+{% block content %}
+<h2>{{ household.name }} — Chore Board</h2>
+
+<p>
+    <a href="{% url 'chores:household_detail' household.pk %}">← Household Details</a>
+    | <a href="{% url 'chores:chore_list' household.pk %}">Manage Chores</a>
+</p>
+
+{% if chore_rows %}
+    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%;">
+        <thead>
+            <tr style="background-color: #f3f4f6;">
+                <th>Chore</th>
+                <th>Frequency</th>
+                <th>Points</th>
+                <th>Due Date</th>
+                <th>Responsible</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in chore_rows %}
+                <tr>
+                    <td>
+                        <strong>{{ row.chore.title }}</strong>
+                        {% if row.chore.description %}<br><small>{{ row.chore.description }}</small>{% endif %}
+                    </td>
+                    <td>{{ row.chore.get_frequency_display }}</td>
+                    <td>{{ row.chore.point_value }}</td>
+                    <td>{{ row.chore.next_due_date }}</td>
+                    <td>
+                        {% if row.responsible_member %}
+                            {{ row.responsible_member.username }}
+                        {% else %}
+                            <em>Unassigned</em>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.status == "Done" %}
+                            <span style="color: green; font-weight: bold;">Done</span>
+                        {% elif row.status == "Overdue" %}
+                            <span style="color: red; font-weight: bold;">Overdue</span>
+                        {% else %}
+                            <span style="color: #4b5563; font-weight: bold;">Pending</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No chores on the board yet. Add some chores to get started!</p>
+{% endif %}
+{% endblock %}

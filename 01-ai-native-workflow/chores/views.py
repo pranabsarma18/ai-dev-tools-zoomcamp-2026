@@ -1,12 +1,16 @@
+from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseNotAllowed
 from django.core.exceptions import PermissionDenied
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 
 from .models import Household, Membership, Chore
 from .forms import HouseholdForm, JoinHouseholdForm, ChoreForm
+from .rotation import current_responsible_index
+from .periods import get_chore_status
 
 
 def index(request):
@@ -220,3 +224,52 @@ def chore_delete(request, pk, chore_pk):
     chore = get_object_or_404(Chore, pk=chore_pk, household=household)
     chore.delete()
     return redirect("chores:chore_list", pk=household.pk)
+
+
+@login_required(login_url="/login/")
+def board_view(request, pk):
+    """Shared household board showing all chores, responsible member, and status."""
+    household = get_object_or_404(Household, pk=pk)
+    is_owner = household.owner == request.user
+    is_member = is_owner or household.memberships.filter(user=request.user).exists()
+    if not is_member:
+        raise PermissionDenied("You are not a member of this household.")
+
+    User = get_user_model()
+    members_dict = {m.pk: m for m in household.get_members()}
+
+    chore_rows = []
+    today = date.today()
+    for chore in household.chores.all().order_by("next_due_date"):
+        responsible_member = None
+        if chore.rotation_members:
+            try:
+                idx = current_responsible_index(
+                    chore.rotation_members,
+                    chore.next_due_date,
+                    chore.frequency,
+                    today,
+                )
+                member_pk = chore.rotation_members[idx]
+                responsible_member = members_dict.get(member_pk) or User.objects.filter(pk=member_pk).first()
+            except (ValueError, IndexError):
+                responsible_member = None
+
+        status = get_chore_status(chore, reference_date=today)
+
+        chore_rows.append({
+            "chore": chore,
+            "responsible_member": responsible_member,
+            "status": status,
+        })
+
+    return render(
+        request,
+        "chores/board.html",
+        {
+            "household": household,
+            "chore_rows": chore_rows,
+            "is_owner": is_owner,
+        },
+    )
+

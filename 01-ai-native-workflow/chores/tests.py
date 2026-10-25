@@ -610,4 +610,66 @@ class ChoreRotationLogicTest(TestCase):
             )
 
 
+class BoardViewTest(TestCase):
+    """Tests for GET /households/<pk>/board/."""
+
+    def setUp(self):
+        from datetime import timedelta
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.stranger = User.objects.create_user(username="stranger", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        Membership.objects.create(household=self.household, user=self.owner)
+        Membership.objects.create(household=self.household, user=self.member)
+
+        today = date.today()
+        self.pending_chore = Chore.objects.create(
+            household=self.household,
+            title="Future Chore",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=today + timedelta(days=2),
+            rotation_members=[self.member.pk],
+        )
+        self.overdue_chore = Chore.objects.create(
+            household=self.household,
+            title="Overdue Chore",
+            frequency=Chore.Frequency.DAILY,
+            point_value=15,
+            next_due_date=today - timedelta(days=2),
+            rotation_members=[self.owner.pk],
+        )
+
+    def test_member_can_access_board(self):
+        """Member can access board."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_member_receives_403(self):
+        """Non-member receives 403 on board view."""
+        self.client.login(username="stranger", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user is redirected to login."""
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/board/")
+
+    def test_board_shows_all_chores_and_statuses(self):
+        """Board shows chores, responsible names, and Pending/Overdue statuses."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Future Chore")
+        self.assertContains(response, "Overdue Chore")
+        self.assertContains(response, "Pending")
+        self.assertContains(response, "Overdue")
+        # Check responsible members
+        self.assertContains(response, "member1")
+        self.assertContains(response, "owner1")
+
+
+
 
