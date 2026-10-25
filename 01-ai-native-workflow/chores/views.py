@@ -1,16 +1,16 @@
 from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 
-from .models import Household, Membership, Chore
+from .models import Household, Membership, Chore, ChoreCompletion
 from .forms import HouseholdForm, JoinHouseholdForm, ChoreForm
 from .rotation import current_responsible_index
-from .periods import get_chore_status
+from .periods import get_chore_status, get_period_delta
 
 
 def index(request):
@@ -256,11 +256,16 @@ def board_view(request, pk):
                 responsible_member = None
 
         status = get_chore_status(chore, reference_date=today)
+        can_complete = (
+            request.user == responsible_member
+            and status != "Done"
+        )
 
         chore_rows.append({
             "chore": chore,
             "responsible_member": responsible_member,
             "status": status,
+            "can_complete": can_complete,
         })
 
     return render(
@@ -272,4 +277,42 @@ def board_view(request, pk):
             "is_owner": is_owner,
         },
     )
+
+
+@login_required(login_url="/login/")
+def complete_chore(request, pk, chore_pk):
+    """Mark a chore as complete. Assigned member only, POST only."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    household = get_object_or_404(Household, pk=pk)
+    chore = get_object_or_404(Chore, pk=chore_pk, household=household)
+
+    today = date.today()
+
+    if not chore.rotation_members:
+        raise PermissionDenied("Chore has no assigned rotation members.")
+
+    idx = current_responsible_index(
+        chore.rotation_members,
+        chore.next_due_date,
+        chore.frequency,
+        today,
+    )
+    assigned_user_pk = chore.rotation_members[idx]
+    if request.user.pk != assigned_user_pk:
+        raise PermissionDenied("Only the currently assigned member can mark this chore complete.")
+
+    if get_chore_status(chore, reference_date=today) == "Done":
+        return HttpResponseBadRequest("Chore is already completed for this period.")
+
+    ChoreCompletion.objects.create(chore=chore, completed_by=request.user)
+
+    # Advance next_due_date by one period
+    delta = get_period_delta(chore.frequency)
+    chore.next_due_date += delta
+    chore.save(update_fields=["next_due_date"])
+
+    return redirect("chores:board", pk=household.pk)
+
 

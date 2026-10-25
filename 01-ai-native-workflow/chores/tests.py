@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from chores.models import Household, Membership, Chore
+from chores.models import Household, Membership, Chore, ChoreCompletion
 
 
 class SmokeTest(TestCase):
@@ -669,6 +669,110 @@ class BoardViewTest(TestCase):
         # Check responsible members
         self.assertContains(response, "member1")
         self.assertContains(response, "owner1")
+
+
+class CompleteChoreViewTest(TestCase):
+    """Tests for POST /households/<pk>/chores/<chore_pk>/complete/."""
+
+    def setUp(self):
+        from datetime import timedelta
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        Membership.objects.create(household=self.household, user=self.owner)
+        Membership.objects.create(household=self.household, user=self.member)
+
+        self.today = date.today()
+        # Daily chore assigned to member1
+        self.daily_chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=5,
+            next_due_date=self.today,
+            rotation_members=[self.member.pk, self.owner.pk],
+        )
+        # Weekly chore assigned to owner1
+        self.weekly_chore = Chore.objects.create(
+            household=self.household,
+            title="Vacuum Living Room",
+            frequency=Chore.Frequency.WEEKLY,
+            point_value=15,
+            next_due_date=self.today,
+            rotation_members=[self.owner.pk, self.member.pk],
+        )
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user is redirected to login."""
+        response = self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.daily_chore.pk})
+        )
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/chores/{self.daily_chore.pk}/complete/")
+
+    def test_non_assigned_member_receives_403(self):
+        """Non-assigned member attempting to complete receives 403."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.daily_chore.pk})
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(ChoreCompletion.objects.count(), 0)
+
+    def test_assigned_member_completes_daily_chore_advances_one_day(self):
+        """Assigned member completes chore: record created, next_due_date advanced by 1 day."""
+        from datetime import timedelta
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.daily_chore.pk})
+        )
+        self.assertRedirects(response, reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertEqual(ChoreCompletion.objects.count(), 1)
+        completion = ChoreCompletion.objects.first()
+        self.assertEqual(completion.chore, self.daily_chore)
+        self.assertEqual(completion.completed_by, self.member)
+        self.assertFalse(completion.verified)
+
+        self.daily_chore.refresh_from_db()
+        self.assertEqual(self.daily_chore.next_due_date, self.today + timedelta(days=1))
+
+    def test_assigned_member_completes_weekly_chore_advances_seven_days(self):
+        """Assigned member completes weekly chore: next_due_date advanced by 7 days."""
+        from datetime import timedelta
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.weekly_chore.pk})
+        )
+        self.assertRedirects(response, reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.weekly_chore.refresh_from_db()
+        self.assertEqual(self.weekly_chore.next_due_date, self.today + timedelta(weeks=1))
+
+    def test_duplicate_completion_in_same_period_is_rejected(self):
+        """Attempting duplicate completion in the same period is rejected."""
+        self.client.login(username="member1", password="Password123!")
+        # First completion
+        self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.daily_chore.pk})
+        )
+        self.assertEqual(ChoreCompletion.objects.count(), 1)
+
+        # Attempt duplicate completion (now next_due_date is advanced, status is Done for today)
+        response = self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.daily_chore.pk})
+        )
+        # Should be rejected with 400 or 403 (or bad request) and count remains 1
+        self.assertIn(response.status_code, [400, 403])
+        self.assertEqual(ChoreCompletion.objects.count(), 1)
+
+    def test_board_shows_mark_complete_only_to_assigned_member(self):
+        """Board HTML contains Mark Complete button only for the assigned member."""
+        # Logged in as member1 (assigned to daily_chore)
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"/chores/{self.daily_chore.pk}/complete/")
+        # Does not have button for weekly_chore (assigned to owner1)
+        self.assertNotContains(response, f"/chores/{self.weekly_chore.pk}/complete/")
+
 
 
 

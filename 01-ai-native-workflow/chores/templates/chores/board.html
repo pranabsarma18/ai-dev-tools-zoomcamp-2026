@@ -20,6 +20,7 @@
                 <th>Due Date</th>
                 <th>Responsible</th>
                 <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -46,6 +47,16 @@
                             <span style="color: red; font-weight: bold;">Overdue</span>
                         {% else %}
                             <span style="color: #4b5563; font-weight: bold;">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.can_complete %}
+                            <form method="post" action="{% url 'chores:complete_chore' household.pk row.chore.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" style="background-color: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
+                                    Mark Complete
+                                </button>
+                            </form>
                         {% endif %}
                     </td>
                 </tr>

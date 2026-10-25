@@ -74,3 +74,22 @@ class Chore(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.household.name})"
+
+
+class ChoreCompletion(models.Model):
+    chore = models.ForeignKey(
+        Chore,
+        on_delete=models.CASCADE,
+        related_name="completions",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="completions",
+    )
+    completed_at = models.DateTimeField(auto_now_add=True)
+    verified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.chore.title} completed by {self.completed_by.username} at {self.completed_at}"
+
