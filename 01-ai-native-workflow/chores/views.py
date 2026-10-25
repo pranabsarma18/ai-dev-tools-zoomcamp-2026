@@ -4,8 +4,8 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 
-from .models import Household
-from .forms import HouseholdForm
+from .models import Household, Membership
+from .forms import HouseholdForm, JoinHouseholdForm
 
 
 def index(request):
@@ -51,6 +51,10 @@ def logout_view(request):
 def dashboard_view(request):
     """Dashboard — requires authentication."""
     household = Household.objects.filter(owner=request.user).first()
+    if not household:
+        membership = Membership.objects.filter(user=request.user).select_related("household").first()
+        if membership:
+            household = membership.household
     return render(request, "chores/dashboard.html", {"user": request.user, "household": household})
 
 
@@ -74,6 +78,7 @@ def create_household(request):
             household = form.save(commit=False)
             household.owner = request.user
             household.save()
+            Membership.objects.create(household=household, user=request.user)
             return redirect("chores:household_detail", pk=household.pk)
     else:
         form = HouseholdForm()
@@ -82,6 +87,54 @@ def create_household(request):
 
 @login_required(login_url="/login/")
 def household_detail(request, pk):
-    """Display household details."""
+    """Display household details and members."""
     household = get_object_or_404(Household, pk=pk)
-    return render(request, "chores/household_detail.html", {"household": household})
+    members = household.get_members()
+    return render(request, "chores/household_detail.html", {"household": household, "members": members})
+
+
+@login_required(login_url="/login/")
+def join_household(request):
+    """Join an existing household using an invite code."""
+    if request.method == "POST":
+        form = JoinHouseholdForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data["invite_code"].strip()
+            try:
+                household = Household.objects.get(invite_code=code)
+            except Household.DoesNotExist:
+                return render(
+                    request,
+                    "chores/join_household.html",
+                    {"form": form, "error": "Invalid invite code."},
+                )
+
+            # Check if user is already a member of this household
+            if (
+                household.owner == request.user
+                or Membership.objects.filter(household=household, user=request.user).exists()
+            ):
+                return render(
+                    request,
+                    "chores/join_household.html",
+                    {"form": form, "error": "You are already a member of this household."},
+                )
+
+            # Check if user belongs to another household
+            in_other_household = (
+                Household.objects.filter(owner=request.user).exclude(pk=household.pk).exists()
+                or Membership.objects.filter(user=request.user).exclude(household=household).exists()
+            )
+            if in_other_household:
+                return render(
+                    request,
+                    "chores/join_household.html",
+                    {"form": form, "error": "You already belong to another household."},
+                )
+
+            Membership.objects.create(household=household, user=request.user)
+            return redirect("chores:household_detail", pk=household.pk)
+    else:
+        form = JoinHouseholdForm()
+
+    return render(request, "chores/join_household.html", {"form": form})

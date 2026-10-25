@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from chores.models import Household
+from chores.models import Household, Membership
 
 
 class SmokeTest(TestCase):
@@ -153,6 +153,15 @@ class HouseholdModelTest(TestCase):
         household.save()
         self.assertEqual(household.invite_code, code1)
 
+    def test_owner_is_implicit_member(self):
+        """Owner is returned by get_members even if no Membership row exists."""
+        household = Household.objects.create(name="Smith Family", owner=self.user)
+        # Verify no explicit Membership row exists
+        self.assertEqual(household.memberships.count(), 0)
+        # get_members still includes owner
+        members = household.get_members()
+        self.assertIn(self.user, members)
+
 
 class CreateHouseholdViewTest(TestCase):
     """Tests for GET/POST /households/create/."""
@@ -209,3 +218,69 @@ class HouseholdDetailViewTest(TestCase):
         self.assertContains(response, self.household.name)
         self.assertContains(response, self.household.invite_code)
         self.assertContains(response, self.user.username)
+
+
+class JoinHouseholdViewTest(TestCase):
+    """Tests for GET/POST /join/."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.member_user = User.objects.create_user(username="member1", password="Password123!")
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user attempting to join is redirected to login."""
+        response = self.client.get(reverse("chores:join_household"))
+        self.assertRedirects(response, "/login/?next=/join/")
+
+    def test_valid_code_creates_membership_row(self):
+        """Valid invite code creates a Membership row and redirects to household detail."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:join_household"),
+            {"invite_code": self.household.invite_code},
+        )
+        self.assertRedirects(response, reverse("chores:household_detail", kwargs={"pk": self.household.pk}))
+        self.assertTrue(
+            Membership.objects.filter(household=self.household, user=self.member_user).exists()
+        )
+        # Check get_members includes newly joined user
+        self.assertIn(self.member_user, self.household.get_members())
+
+    def test_invalid_code_shows_form_error(self):
+        """Invalid invite code displays an error and creates no Membership row."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:join_household"),
+            {"invite_code": "NON_EXISTENT_CODE"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid invite code.")
+        self.assertFalse(Membership.objects.filter(user=self.member_user).exists())
+
+    def test_already_a_member_shows_form_error(self):
+        """User already a member of the household cannot join again."""
+        Membership.objects.create(household=self.household, user=self.member_user)
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:join_household"),
+            {"invite_code": self.household.invite_code},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "You are already a member of this household.")
+        self.assertEqual(Membership.objects.filter(household=self.household, user=self.member_user).count(), 1)
+
+    def test_user_already_in_another_household_is_rejected(self):
+        """User already belonging to a different household cannot join a new one."""
+        other_owner = User.objects.create_user(username="other_owner", password="Password123!")
+        other_household = Household.objects.create(name="Jones Family", owner=other_owner)
+        Membership.objects.create(household=other_household, user=self.member_user)
+
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:join_household"),
+            {"invite_code": self.household.invite_code},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "You already belong to another household.")
+        self.assertFalse(Membership.objects.filter(household=self.household, user=self.member_user).exists())

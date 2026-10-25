@@ -1,0 +1,17 @@
+{% extends "chores/base.html" %}
+
+{% block title %}Join a Household — Household Chores{% endblock %}
+
+{% block content %}
+<h2>Join a Household</h2>
+
+{% if error %}
+    <p style="color: red;"><strong>{{ error }}</strong></p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Join Household</button>
+</form>
+{% endblock %}

@@ -1,5 +1,6 @@
 import secrets
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 
 
@@ -18,5 +19,31 @@ class Household(models.Model):
             self.invite_code = secrets.token_urlsafe(8)
         super().save(*args, **kwargs)
 
+    def get_members(self):
+        """Return all members of the household, always including the owner."""
+        member_ids = set(self.memberships.values_list("user_id", flat=True))
+        member_ids.add(self.owner_id)
+        return get_user_model().objects.filter(id__in=member_ids)
+
     def __str__(self):
         return self.name
+
+
+class Membership(models.Model):
+    household = models.ForeignKey(
+        Household,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("household", "user")]
+
+    def __str__(self):
+        return f"{self.user.username} in {self.household.name}"

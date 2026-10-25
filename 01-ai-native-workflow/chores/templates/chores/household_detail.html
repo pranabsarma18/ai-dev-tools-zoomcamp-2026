@@ -7,4 +7,13 @@
 <p><strong>Owner:</strong> {{ household.owner.username }}</p>
 <p><strong>Invite Code:</strong> <code>{{ household.invite_code }}</code></p>
 <p>Share this invite code with other members to invite them to this household.</p>
+
+<h3>Members</h3>
+<ul>
+    {% for member in members %}
+        <li>{{ member.username }}{% if member == household.owner %} <em>(Owner)</em>{% endif %}</li>
+    {% empty %}
+        <li>No members yet.</li>
+    {% endfor %}
+</ul>
 {% endblock %}

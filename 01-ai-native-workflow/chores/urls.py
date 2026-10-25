@@ -12,4 +12,5 @@ urlpatterns = [
     path("dashboard/", views.dashboard_view, name="dashboard"),
     path("households/create/", views.create_household, name="create_household"),
     path("households/<int:pk>/", views.household_detail, name="household_detail"),
+    path("join/", views.join_household, name="join_household"),
 ]
