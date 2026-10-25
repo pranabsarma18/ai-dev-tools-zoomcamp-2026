@@ -506,3 +506,108 @@ class ChoreManagementViewTest(TestCase):
         self.assertTrue(Chore.objects.filter(pk=self.chore.pk).exists())
 
 
+class ChoreRotationLogicTest(TestCase):
+    """Tests for pure rotation logic in chores/rotation.py."""
+
+    def test_first_slot_when_not_yet_due(self):
+        """When reference_date is before next_due_date, index is 0."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[1, 2, 3],
+            next_due_date=date(2026, 11, 10),
+            frequency="daily",
+            reference_date=date(2026, 11, 5),
+        )
+        self.assertEqual(idx, 0)
+
+    def test_first_slot_when_due_today(self):
+        """When reference_date equals next_due_date, index is 0."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[10, 20, 30],
+            next_due_date=date(2026, 11, 1),
+            frequency="daily",
+            reference_date=date(2026, 11, 1),
+        )
+        self.assertEqual(idx, 0)
+
+    def test_second_member_one_period_elapsed_daily(self):
+        """One day elapsed on daily chore advances index to 1."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[10, 20, 30],
+            next_due_date=date(2026, 11, 1),
+            frequency="daily",
+            reference_date=date(2026, 11, 2),
+        )
+        self.assertEqual(idx, 1)
+
+    def test_second_member_one_period_elapsed_weekly(self):
+        """One week (7 days) elapsed on weekly chore advances index to 1."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[10, 20, 30],
+            next_due_date=date(2026, 11, 1),
+            frequency="weekly",
+            reference_date=date(2026, 11, 8),
+        )
+        self.assertEqual(idx, 1)
+
+    def test_wrap_around_back_to_first_member(self):
+        """When elapsed periods equals list length, wraps around to 0."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[10, 20],
+            next_due_date=date(2026, 11, 1),
+            frequency="daily",
+            reference_date=date(2026, 11, 3),  # 2 days elapsed, len=2 -> 0
+        )
+        self.assertEqual(idx, 0)
+
+    def test_overdue_by_more_than_one_period(self):
+        """Overdue by multiple periods wraps correctly."""
+        from chores.rotation import current_responsible_index
+        # 5 days elapsed on daily with 3 members: 5 % 3 = 2 -> index 2
+        idx = current_responsible_index(
+            rotation_members=[101, 102, 103],
+            next_due_date=date(2026, 11, 1),
+            frequency="daily",
+            reference_date=date(2026, 11, 6),
+        )
+        self.assertEqual(idx, 2)
+
+    def test_single_member_always_returns_zero(self):
+        """Single-member list always returns 0 regardless of dates."""
+        from chores.rotation import current_responsible_index
+        idx = current_responsible_index(
+            rotation_members=[42],
+            next_due_date=date(2026, 1, 1),
+            frequency="daily",
+            reference_date=date(2026, 12, 31),
+        )
+        self.assertEqual(idx, 0)
+
+    def test_empty_rotation_members_raises_value_error(self):
+        """Empty rotation list raises ValueError."""
+        from chores.rotation import current_responsible_index
+        with self.assertRaises(ValueError):
+            current_responsible_index(
+                rotation_members=[],
+                next_due_date=date(2026, 11, 1),
+                frequency="daily",
+                reference_date=date(2026, 11, 1),
+            )
+
+    def test_invalid_frequency_raises_value_error(self):
+        """Invalid frequency raises ValueError."""
+        from chores.rotation import current_responsible_index
+        with self.assertRaises(ValueError):
+            current_responsible_index(
+                rotation_members=[1],
+                next_due_date=date(2026, 11, 1),
+                frequency="monthly",
+                reference_date=date(2026, 11, 1),
+            )
+
+
+
