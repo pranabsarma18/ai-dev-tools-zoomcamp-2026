@@ -11,6 +11,7 @@ from .models import Household, Membership, Chore, ChoreCompletion
 from .forms import HouseholdForm, JoinHouseholdForm, ChoreForm
 from .rotation import current_responsible_index
 from .periods import get_chore_status, get_period_delta
+from .points import award_completion_points, award_verification_bonus
 
 
 def index(request):
@@ -324,7 +325,8 @@ def complete_chore(request, pk, chore_pk):
     if get_chore_status(chore, reference_date=today) == "Done":
         return HttpResponseBadRequest("Chore is already completed for this period.")
 
-    ChoreCompletion.objects.create(chore=chore, completed_by=request.user)
+    completion = ChoreCompletion.objects.create(chore=chore, completed_by=request.user)
+    award_completion_points(completion)
 
     # Advance next_due_date by one period
     delta = get_period_delta(chore.frequency)
@@ -356,6 +358,7 @@ def verify_completion(request, pk, completion_pk):
     if not completion.verified:
         completion.verified = True
         completion.save(update_fields=["verified"])
+        award_verification_bonus(completion)
 
     return redirect("chores:board", pk=household.pk)
 

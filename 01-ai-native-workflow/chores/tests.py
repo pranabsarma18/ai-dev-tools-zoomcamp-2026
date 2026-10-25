@@ -967,6 +967,130 @@ class CarryForwardChoresCommandTest(TestCase):
         self.assertEqual(self.overdue_chore.next_due_date, date(2026, 11, 2))
 
 
+class PointsTrackingTest(TestCase):
+    """Tests for points awarding and verification bonus."""
+
+    def setUp(self):
+        from chores.points import award_completion_points, award_verification_bonus
+        self.award_completion_points = award_completion_points
+        self.award_verification_bonus = award_verification_bonus
+
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.owner_membership = Membership.objects.create(household=self.household, user=self.owner)
+        self.member_membership = Membership.objects.create(household=self.household, user=self.member)
+
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=25,
+            next_due_date=date.today(),
+            rotation_members=[self.member.pk],
+        )
+
+    def test_completion_awards_base_points(self):
+        """Creating completion awards chore.point_value to completing member."""
+        completion = ChoreCompletion.objects.create(
+            chore=self.chore,
+            completed_by=self.member,
+        )
+        self.award_completion_points(completion)
+
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.points, 25)
+
+    def test_verification_awards_ten_percent_floor_bonus(self):
+        """Verifying completion awards floor(point_value * 0.10) to completing member."""
+        completion = ChoreCompletion.objects.create(
+            chore=self.chore,
+            completed_by=self.member,
+        )
+        self.award_completion_points(completion)
+        self.award_verification_bonus(completion)
+
+        self.member_membership.refresh_from_db()
+        # 25 + floor(25 * 0.10) = 25 + 2 = 27
+        self.assertEqual(self.member_membership.points, 27)
+
+    def test_small_point_value_bonus_rounds_down_to_zero(self):
+        """point_value = 5 awards 0 bonus on verification."""
+        small_chore = Chore.objects.create(
+            household=self.household,
+            title="Quick Task",
+            frequency=Chore.Frequency.DAILY,
+            point_value=5,
+            next_due_date=date.today(),
+        )
+        completion = ChoreCompletion.objects.create(
+            chore=small_chore,
+            completed_by=self.member,
+        )
+        self.award_completion_points(completion)
+        bonus = self.award_verification_bonus(completion)
+
+        self.assertEqual(bonus, 0)
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.points, 5)
+
+    def test_point_values_10_and_100_bonuses(self):
+        """point_value=10 gives bonus=1; point_value=100 gives bonus=10."""
+        chore10 = Chore.objects.create(
+            household=self.household,
+            title="Task 10",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+        )
+        comp10 = ChoreCompletion.objects.create(chore=chore10, completed_by=self.member)
+        self.assertEqual(self.award_verification_bonus(comp10), 1)
+
+        chore100 = Chore.objects.create(
+            household=self.household,
+            title="Task 100",
+            frequency=Chore.Frequency.WEEKLY,
+            point_value=100,
+            next_due_date=date.today(),
+        )
+        comp100 = ChoreCompletion.objects.create(chore=chore100, completed_by=self.member)
+        self.assertEqual(self.award_verification_bonus(comp100), 10)
+
+    def test_points_are_cumulative_and_other_members_unaffected(self):
+        """Points accumulate across completions; other members' points remain 0."""
+        comp1 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        self.award_completion_points(comp1)
+
+        comp2 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
+        self.award_completion_points(comp2)
+
+        self.member_membership.refresh_from_db()
+        self.owner_membership.refresh_from_db()
+
+        self.assertEqual(self.member_membership.points, 50)
+        self.assertEqual(self.owner_membership.points, 0)
+
+    def test_integration_complete_and_verify_views_award_points(self):
+        """Full view integration: completing via POST and verifying via POST awards points."""
+        self.client.login(username="member1", password="Password123!")
+        # Complete chore
+        self.client.post(
+            reverse("chores:complete_chore", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk})
+        )
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.points, 25)
+
+        # Verify as owner
+        completion = ChoreCompletion.objects.get(chore=self.chore)
+        self.client.login(username="owner1", password="Password123!")
+        self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": completion.pk})
+        )
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.points, 27)
+
+
+
 
 
 

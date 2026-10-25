@@ -42,6 +42,7 @@ class Membership(models.Model):
         related_name="memberships",
     )
     joined_at = models.DateTimeField(auto_now_add=True)
+    points = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = [("household", "user")]
