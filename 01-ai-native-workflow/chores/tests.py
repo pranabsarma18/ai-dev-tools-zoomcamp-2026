@@ -774,6 +774,107 @@ class CompleteChoreViewTest(TestCase):
         self.assertNotContains(response, f"/chores/{self.weekly_chore.pk}/complete/")
 
 
+class VerifyCompletionViewTest(TestCase):
+    """Tests for POST /households/<pk>/completions/<completion_pk>/verify/."""
+
+    def setUp(self):
+        from datetime import timedelta
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.stranger = User.objects.create_user(username="stranger", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        Membership.objects.create(household=self.household, user=self.owner)
+        Membership.objects.create(household=self.household, user=self.member)
+
+        today = date.today()
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=today + timedelta(days=1),
+            rotation_members=[self.member.pk, self.owner.pk],
+        )
+        self.completion = ChoreCompletion.objects.create(
+            chore=self.chore,
+            completed_by=self.member,
+            verified=False,
+        )
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user is redirected to login."""
+        response = self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": self.completion.pk})
+        )
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/completions/{self.completion.pk}/verify/")
+
+    def test_non_member_receives_403(self):
+        """Non-member receives 403 on verify."""
+        self.client.login(username="stranger", password="Password123!")
+        response = self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": self.completion.pk})
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_completer_cannot_verify_own_completion(self):
+        """User who completed the chore cannot verify their own completion."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": self.completion.pk})
+        )
+        self.assertEqual(response.status_code, 403)
+        self.completion.refresh_from_db()
+        self.assertFalse(self.completion.verified)
+
+    def test_other_member_verifies_completion(self):
+        """Other household member can verify completion."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": self.completion.pk})
+        )
+        self.assertRedirects(response, reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.completion.refresh_from_db()
+        self.assertTrue(self.completion.verified)
+
+    def test_verifying_already_verified_is_idempotent(self):
+        """Verifying an already-verified completion redirects cleanly without error."""
+        self.completion.verified = True
+        self.completion.save()
+
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:verify_completion", kwargs={"pk": self.household.pk, "completion_pk": self.completion.pk})
+        )
+        self.assertRedirects(response, reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.completion.refresh_from_db()
+        self.assertTrue(self.completion.verified)
+
+    def test_board_shows_verify_button_only_to_non_completers(self):
+        """Verify button appears on board for other members, but not for completer."""
+        # Member who completed: no verify button
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertNotContains(response, f"/completions/{self.completion.pk}/verify/")
+
+        # Owner (different member): verify button is present
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertContains(response, f"/completions/{self.completion.pk}/verify/")
+
+    def test_board_shows_verified_vs_unverified_badges(self):
+        """Board shows unverified badge when false, and verified badge when true."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertContains(response, "Done (unverified)")
+
+        self.completion.verified = True
+        self.completion.save()
+
+        response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
+        self.assertContains(response, "Done ✓ (verified)")
+
+
+
 
 
 

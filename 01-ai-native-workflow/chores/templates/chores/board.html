@@ -41,8 +41,10 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if row.status == "Done" %}
-                            <span style="color: green; font-weight: bold;">Done</span>
+                        {% if "verified" in row.display_status %}
+                            <span style="color: green; font-weight: bold;">{{ row.display_status }}</span>
+                        {% elif "unverified" in row.display_status %}
+                            <span style="color: #d97706; font-weight: bold;">{{ row.display_status }}</span>
                         {% elif row.status == "Overdue" %}
                             <span style="color: red; font-weight: bold;">Overdue</span>
                         {% else %}
@@ -55,6 +57,14 @@
                                 {% csrf_token %}
                                 <button type="submit" style="background-color: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
                                     Mark Complete
+                                </button>
+                            </form>
+                        {% endif %}
+                        {% if row.can_verify %}
+                            <form method="post" action="{% url 'chores:verify_completion' household.pk row.latest_completion.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" style="background-color: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
+                                    Verify
                                 </button>
                             </form>
                         {% endif %}

@@ -261,11 +261,29 @@ def board_view(request, pk):
             and status != "Done"
         )
 
+        latest_completion = chore.completions.order_by("-completed_at").first()
+        is_verified = latest_completion.verified if latest_completion else False
+
+        if status == "Done":
+            display_status = "Done ✓ (verified)" if is_verified else "Done (unverified)"
+        else:
+            display_status = status
+
+        can_verify = (
+            status == "Done"
+            and latest_completion is not None
+            and not is_verified
+            and request.user != latest_completion.completed_by
+        )
+
         chore_rows.append({
             "chore": chore,
             "responsible_member": responsible_member,
             "status": status,
+            "display_status": display_status,
             "can_complete": can_complete,
+            "can_verify": can_verify,
+            "latest_completion": latest_completion,
         })
 
     return render(
@@ -314,5 +332,32 @@ def complete_chore(request, pk, chore_pk):
     chore.save(update_fields=["next_due_date"])
 
     return redirect("chores:board", pk=household.pk)
+
+
+@login_required(login_url="/login/")
+def verify_completion(request, pk, completion_pk):
+    """Verify a completed chore. Any household member except the completer."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    household = get_object_or_404(Household, pk=pk)
+    is_owner = household.owner == request.user
+    is_member = is_owner or household.memberships.filter(user=request.user).exists()
+    if not is_member:
+        raise PermissionDenied("You are not a member of this household.")
+
+    completion = get_object_or_404(
+        ChoreCompletion, pk=completion_pk, chore__household=household
+    )
+
+    if completion.completed_by == request.user:
+        raise PermissionDenied("You cannot verify your own chore completion.")
+
+    if not completion.verified:
+        completion.verified = True
+        completion.save(update_fields=["verified"])
+
+    return redirect("chores:board", pk=household.pk)
+
 
 
