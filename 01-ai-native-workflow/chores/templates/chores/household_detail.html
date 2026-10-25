@@ -1,0 +1,10 @@
+{% extends "chores/base.html" %}
+
+{% block title %}{{ household.name }} — Household Chores{% endblock %}
+
+{% block content %}
+<h2>{{ household.name }}</h2>
+<p><strong>Owner:</strong> {{ household.owner.username }}</p>
+<p><strong>Invite Code:</strong> <code>{{ household.invite_code }}</code></p>
+<p>Share this invite code with other members to invite them to this household.</p>
+{% endblock %}

@@ -1,8 +1,11 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+
+from .models import Household
+from .forms import HouseholdForm
 
 
 def index(request):
@@ -46,6 +49,39 @@ def logout_view(request):
 
 @login_required(login_url="/login/")
 def dashboard_view(request):
-    """Placeholder dashboard — requires authentication."""
-    return render(request, "chores/dashboard.html", {"user": request.user})
+    """Dashboard — requires authentication."""
+    household = Household.objects.filter(owner=request.user).first()
+    return render(request, "chores/dashboard.html", {"user": request.user, "household": household})
 
+
+@login_required(login_url="/login/")
+def create_household(request):
+    """Create a new household. Only one household allowed per owner."""
+    if Household.objects.filter(owner=request.user).exists():
+        existing = Household.objects.filter(owner=request.user).first()
+        return render(
+            request,
+            "chores/household_form.html",
+            {
+                "error": "You already own a household.",
+                "existing_household": existing,
+            },
+        )
+
+    if request.method == "POST":
+        form = HouseholdForm(request.POST)
+        if form.is_valid():
+            household = form.save(commit=False)
+            household.owner = request.user
+            household.save()
+            return redirect("chores:household_detail", pk=household.pk)
+    else:
+        form = HouseholdForm()
+    return render(request, "chores/household_form.html", {"form": form})
+
+
+@login_required(login_url="/login/")
+def household_detail(request, pk):
+    """Display household details."""
+    household = get_object_or_404(Household, pk=pk)
+    return render(request, "chores/household_detail.html", {"household": household})

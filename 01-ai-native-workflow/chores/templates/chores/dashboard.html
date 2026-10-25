@@ -4,5 +4,12 @@
 
 {% block content %}
 <h2>Welcome, {{ user.username }}!</h2>
-<p>Your household dashboard will appear here in a future update.</p>
+
+{% if household %}
+    <p>You own the household: <strong>{{ household.name }}</strong></p>
+    <p><a href="{% url 'chores:household_detail' household.pk %}">Go to Household Details</a></p>
+{% else %}
+    <p>You do not belong to any household yet.</p>
+    <p><a href="{% url 'chores:create_household' %}">Create a Household</a></p>
+{% endif %}
 {% endblock %}

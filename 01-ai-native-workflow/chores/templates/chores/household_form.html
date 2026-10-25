@@ -1,0 +1,20 @@
+{% extends "chores/base.html" %}
+
+{% block title %}Create Household — Household Chores{% endblock %}
+
+{% block content %}
+<h2>Create a Household</h2>
+
+{% if error %}
+    <p style="color: red;"><strong>{{ error }}</strong></p>
+    {% if existing_household %}
+        <p><a href="{% url 'chores:household_detail' existing_household.pk %}">View your household: {{ existing_household.name }}</a></p>
+    {% endif %}
+{% else %}
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Create Household</button>
+    </form>
+{% endif %}
+{% endblock %}
