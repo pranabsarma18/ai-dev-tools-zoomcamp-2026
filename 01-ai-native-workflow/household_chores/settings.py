@@ -111,6 +111,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Auth
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
