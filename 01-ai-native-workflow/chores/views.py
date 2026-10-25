@@ -1,7 +1,10 @@
 from datetime import date
+import json
+import os
+from django.conf import settings
 from django.db.models import Count, Q
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest, JsonResponse
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
@@ -399,6 +402,23 @@ def leaderboard_view(request, pk):
             "memberships": memberships,
         },
     )
+
+
+def manifest_view(request):
+    """Serve PWA manifest.json."""
+    manifest_path = os.path.join(settings.BASE_DIR, "chores", "static", "chores", "manifest.json")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return JsonResponse(data)
+
+
+def service_worker_view(request):
+    """Serve PWA service worker sw.js."""
+    sw_path = os.path.join(settings.BASE_DIR, "chores", "static", "chores", "sw.js")
+    with open(sw_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return HttpResponse(content, content_type="application/javascript")
+
 
 
 

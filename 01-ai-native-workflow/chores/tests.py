@@ -1193,6 +1193,45 @@ class LeaderboardViewTest(TestCase):
         self.assertContains(response, "owner1")
 
 
+class PWATest(TestCase):
+    """Tests for PWA web app manifest and service worker."""
+
+    def test_manifest_is_served_with_json_content_type(self):
+        """manifest.json is served with HTTP 200 and application/json."""
+        response = self.client.get(reverse("chores:manifest"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/json", response["Content-Type"])
+
+        data = response.json()
+        self.assertEqual(data["name"], "Shared Household Chores")
+        self.assertEqual(data["short_name"], "HouseChores")
+        self.assertEqual(data["start_url"], "/")
+        self.assertEqual(data["display"], "standalone")
+        self.assertTrue(data["theme_color"])
+        self.assertTrue(data["background_color"])
+        self.assertGreaterEqual(len(data["icons"]), 2)
+
+    def test_manifest_link_in_html(self):
+        """Base template rendered pages contain <link rel='manifest'>."""
+        response = self.client.get(reverse("chores:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'rel="manifest"')
+
+    def test_sw_is_served_with_javascript_content_type(self):
+        """sw.js is served with HTTP 200 and application/javascript."""
+        response = self.client.get(reverse("chores:service_worker"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("javascript", response["Content-Type"])
+        self.assertContains(response, "addEventListener")
+
+    def test_sw_script_tag_in_html(self):
+        """Base template rendered pages contain serviceWorker.register."""
+        response = self.client.get(reverse("chores:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "serviceWorker.register")
+
+
+
         comp2 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
         self.increment_streak(comp2)
         self.member_membership.refresh_from_db()
@@ -1342,6 +1381,45 @@ class LeaderboardViewTest(TestCase):
         response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "owner1")
+
+
+class PWATest(TestCase):
+    """Tests for PWA web app manifest and service worker."""
+
+    def test_manifest_is_served_with_json_content_type(self):
+        """manifest.json is served with HTTP 200 and application/json."""
+        response = self.client.get(reverse("chores:manifest"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/json", response["Content-Type"])
+
+        data = response.json()
+        self.assertEqual(data["name"], "Shared Household Chores")
+        self.assertEqual(data["short_name"], "HouseChores")
+        self.assertEqual(data["start_url"], "/")
+        self.assertEqual(data["display"], "standalone")
+        self.assertTrue(data["theme_color"])
+        self.assertTrue(data["background_color"])
+        self.assertGreaterEqual(len(data["icons"]), 2)
+
+    def test_manifest_link_in_html(self):
+        """Base template rendered pages contain <link rel='manifest'>."""
+        response = self.client.get(reverse("chores:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'rel="manifest"')
+
+    def test_sw_is_served_with_javascript_content_type(self):
+        """sw.js is served with HTTP 200 and application/javascript."""
+        response = self.client.get(reverse("chores:service_worker"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("javascript", response["Content-Type"])
+        self.assertContains(response, "addEventListener")
+
+    def test_sw_script_tag_in_html(self):
+        """Base template rendered pages contain serviceWorker.register."""
+        response = self.client.get(reverse("chores:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "serviceWorker.register")
+
 
 
 

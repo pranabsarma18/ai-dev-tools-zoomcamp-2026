@@ -21,4 +21,8 @@ urlpatterns = [
     path("households/<int:pk>/chores/<int:chore_pk>/complete/", views.complete_chore, name="complete_chore"),
     path("households/<int:pk>/completions/<int:completion_pk>/verify/", views.verify_completion, name="verify_completion"),
     path("join/", views.join_household, name="join_household"),
+    path("manifest.json", views.manifest_view, name="manifest"),
+    path("static/chores/manifest.json", views.manifest_view, name="static_manifest"),
+    path("sw.js", views.service_worker_view, name="service_worker"),
+    path("static/chores/sw.js", views.service_worker_view, name="static_sw"),
 ]
