@@ -8,6 +8,13 @@
 <p><strong>Invite Code:</strong> <code>{{ household.invite_code }}</code></p>
 <p>Share this invite code with other members to invite them to this household.</p>
 
+<p>
+    <a href="{% url 'chores:chore_list' household.pk %}">View Chores</a>
+    {% if household.owner == user %}
+        | <a href="{% url 'chores:chore_create' household.pk %}">Add New Chore</a>
+    {% endif %}
+</p>
+
 <h3>Members</h3>
 <ul>
     {% for member in members %}

@@ -1,0 +1,55 @@
+{% extends "chores/base.html" %}
+
+{% block title %}Chores — {{ household.name }}{% endblock %}
+
+{% block content %}
+<h2>Chores for {{ household.name }}</h2>
+
+<p>
+    <a href="{% url 'chores:household_detail' household.pk %}">← Back to Household</a>
+    {% if is_owner %}
+        | <a href="{% url 'chores:chore_create' household.pk %}">+ Add New Chore</a>
+    {% endif %}
+</p>
+
+{% if chores %}
+    <table border="1" cellpadding="6" style="border-collapse: collapse; width: 100%;">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Frequency</th>
+                <th>Points</th>
+                <th>Next Due Date</th>
+                {% if is_owner %}
+                    <th>Actions</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for chore in chores %}
+                <tr>
+                    <td>
+                        <strong>{{ chore.title }}</strong>
+                        {% if chore.description %}<br><small>{{ chore.description }}</small>{% endif %}
+                    </td>
+                    <td>{{ chore.get_frequency_display }}</td>
+                    <td>{{ chore.point_value }}</td>
+                    <td>{{ chore.next_due_date }}</td>
+                    {% if is_owner %}
+                        <td>
+                            <a href="{% url 'chores:chore_edit' household.pk chore.pk %}">Edit</a>
+                            |
+                            <form method="post" action="{% url 'chores:chore_delete' household.pk chore.pk %}" style="display:inline;" onsubmit="return confirm('Delete this chore?');">
+                                {% csrf_token %}
+                                <button type="submit" style="color: red;">Delete</button>
+                            </form>
+                        </td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No chores defined for this household yet.</p>
+{% endif %}
+{% endblock %}

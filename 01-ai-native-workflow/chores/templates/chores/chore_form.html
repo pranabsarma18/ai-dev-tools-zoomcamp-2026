@@ -1,0 +1,14 @@
+{% extends "chores/base.html" %}
+
+{% block title %}{{ action }} Chore — {{ household.name }}{% endblock %}
+
+{% block content %}
+<h2>{{ action }} Chore for {{ household.name }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{{ action }} Chore</button>
+    <a href="{% url 'chores:chore_list' household.pk %}">Cancel</a>
+</form>
+{% endblock %}

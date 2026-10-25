@@ -389,3 +389,120 @@ class ChoreModelTest(TestCase):
         chore.save()
         self.assertEqual(chore.description, "")
 
+
+class ChoreManagementViewTest(TestCase):
+    """Tests for chore CRUD operations and permissions."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        self.stranger = User.objects.create_user(username="stranger", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        Membership.objects.create(household=self.household, user=self.owner)
+        Membership.objects.create(household=self.household, user=self.member)
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+            rotation_members=[self.owner.pk, self.member.pk],
+        )
+
+    def test_chore_list_shows_all_chores_for_household(self):
+        """Member can access chore list and see chores."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.get(reverse("chores:chore_list", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Clean Kitchen")
+
+    def test_non_member_cannot_view_chore_list(self):
+        """Non-member receives 403 on chore list."""
+        self.client.login(username="stranger", password="Password123!")
+        response = self.client.get(reverse("chores:chore_list", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_owner_can_create_chore(self):
+        """Owner can access create form and submit valid chore."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_create", kwargs={"pk": self.household.pk}),
+            {
+                "title": "Mow Lawn",
+                "description": "Front yard",
+                "frequency": Chore.Frequency.WEEKLY,
+                "point_value": 20,
+                "next_due_date": "2026-11-01",
+                "rotation_members": [str(self.owner.pk)],
+            },
+        )
+        self.assertRedirects(response, reverse("chores:chore_list", kwargs={"pk": self.household.pk}))
+        self.assertTrue(Chore.objects.filter(title="Mow Lawn", household=self.household).exists())
+
+    def test_member_receives_403_on_create(self):
+        """Household member (not owner) receives 403 on create view."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_create", kwargs={"pk": self.household.pk}),
+            {
+                "title": "Mow Lawn",
+                "frequency": Chore.Frequency.WEEKLY,
+                "point_value": 20,
+                "next_due_date": "2026-11-01",
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login_on_create(self):
+        """Anonymous user is redirected to login on create view."""
+        response = self.client.get(reverse("chores:chore_create", kwargs={"pk": self.household.pk}))
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/chores/create/")
+
+    def test_owner_can_edit_chore(self):
+        """Owner can edit an existing chore."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_edit", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk}),
+            {
+                "title": "Clean Whole Kitchen",
+                "description": "Including oven",
+                "frequency": Chore.Frequency.DAILY,
+                "point_value": 15,
+                "next_due_date": "2026-11-02",
+                "rotation_members": [str(self.member.pk)],
+            },
+        )
+        self.assertRedirects(response, reverse("chores:chore_list", kwargs={"pk": self.household.pk}))
+        self.chore.refresh_from_db()
+        self.assertEqual(self.chore.title, "Clean Whole Kitchen")
+        self.assertEqual(self.chore.point_value, 15)
+        self.assertEqual(self.chore.rotation_members, [self.member.pk])
+
+    def test_member_receives_403_on_edit(self):
+        """Household member receives 403 on edit view."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_edit", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk}),
+            {"title": "Hacked Title"},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_owner_can_delete_chore(self):
+        """Owner can delete a chore via POST."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_delete", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk})
+        )
+        self.assertRedirects(response, reverse("chores:chore_list", kwargs={"pk": self.household.pk}))
+        self.assertFalse(Chore.objects.filter(pk=self.chore.pk).exists())
+
+    def test_member_receives_403_on_delete(self):
+        """Household member receives 403 on delete view."""
+        self.client.login(username="member1", password="Password123!")
+        response = self.client.post(
+            reverse("chores:chore_delete", kwargs={"pk": self.household.pk, "chore_pk": self.chore.pk})
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Chore.objects.filter(pk=self.chore.pk).exists())
+
+

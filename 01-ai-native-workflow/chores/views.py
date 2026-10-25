@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotAllowed
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 
-from .models import Household, Membership
-from .forms import HouseholdForm, JoinHouseholdForm
+from .models import Household, Membership, Chore
+from .forms import HouseholdForm, JoinHouseholdForm, ChoreForm
 
 
 def index(request):
@@ -138,3 +139,84 @@ def join_household(request):
         form = JoinHouseholdForm()
 
     return render(request, "chores/join_household.html", {"form": form})
+
+
+@login_required(login_url="/login/")
+def chore_list(request, pk):
+    """List all chores for a household. Members only."""
+    household = get_object_or_404(Household, pk=pk)
+    is_owner = household.owner == request.user
+    is_member = is_owner or household.memberships.filter(user=request.user).exists()
+    if not is_member:
+        raise PermissionDenied("You are not a member of this household.")
+
+    chores = household.chores.all().order_by("next_due_date")
+    return render(
+        request,
+        "chores/chore_list.html",
+        {
+            "household": household,
+            "chores": chores,
+            "is_owner": is_owner,
+        },
+    )
+
+
+@login_required(login_url="/login/")
+def chore_create(request, pk):
+    """Create a new chore. Owner only."""
+    household = get_object_or_404(Household, pk=pk)
+    if household.owner != request.user:
+        raise PermissionDenied("Only the household owner can create chores.")
+
+    if request.method == "POST":
+        form = ChoreForm(request.POST, household=household)
+        if form.is_valid():
+            chore = form.save(commit=False)
+            chore.household = household
+            chore.save()
+            return redirect("chores:chore_list", pk=household.pk)
+    else:
+        form = ChoreForm(household=household)
+
+    return render(
+        request,
+        "chores/chore_form.html",
+        {"household": household, "form": form, "action": "Create"},
+    )
+
+
+@login_required(login_url="/login/")
+def chore_edit(request, pk, chore_pk):
+    """Edit an existing chore. Owner only."""
+    household = get_object_or_404(Household, pk=pk)
+    if household.owner != request.user:
+        raise PermissionDenied("Only the household owner can edit chores.")
+    chore = get_object_or_404(Chore, pk=chore_pk, household=household)
+
+    if request.method == "POST":
+        form = ChoreForm(request.POST, instance=chore, household=household)
+        if form.is_valid():
+            form.save()
+            return redirect("chores:chore_list", pk=household.pk)
+    else:
+        form = ChoreForm(instance=chore, household=household)
+
+    return render(
+        request,
+        "chores/chore_form.html",
+        {"household": household, "chore": chore, "form": form, "action": "Edit"},
+    )
+
+
+@login_required(login_url="/login/")
+def chore_delete(request, pk, chore_pk):
+    """Delete a chore. Owner only, POST only."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    household = get_object_or_404(Household, pk=pk)
+    if household.owner != request.user:
+        raise PermissionDenied("Only the household owner can delete chores.")
+    chore = get_object_or_404(Chore, pk=chore_pk, household=household)
+    chore.delete()
+    return redirect("chores:chore_list", pk=household.pk)
