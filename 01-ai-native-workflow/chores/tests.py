@@ -1,7 +1,9 @@
+from datetime import date
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from chores.models import Household, Membership
+from chores.models import Household, Membership, Chore
 
 
 class SmokeTest(TestCase):
@@ -284,3 +286,106 @@ class JoinHouseholdViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "You already belong to another household.")
         self.assertFalse(Membership.objects.filter(household=self.household, user=self.member_user).exists())
+
+
+class ChoreModelTest(TestCase):
+    """Tests for the Chore model validation and defaults."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+
+    def test_point_value_zero_raises_validation_error(self):
+        """point_value = 0 fails validation."""
+        chore = Chore(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=0,
+            next_due_date=date.today(),
+        )
+        with self.assertRaises(ValidationError):
+            chore.full_clean()
+
+    def test_point_value_negative_raises_validation_error(self):
+        """point_value = -1 fails validation."""
+        chore = Chore(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=-1,
+            next_due_date=date.today(),
+        )
+        with self.assertRaises(ValidationError):
+            chore.full_clean()
+
+    def test_point_value_positive_is_valid(self):
+        """point_value = 1 is valid."""
+        chore = Chore(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency=Chore.Frequency.DAILY,
+            point_value=1,
+            next_due_date=date.today(),
+        )
+        chore.full_clean()  # should not raise
+        chore.save()
+        self.assertEqual(chore.point_value, 1)
+
+    def test_frequency_invalid_raises_validation_error(self):
+        """frequency = 'monthly' fails validation."""
+        chore = Chore(
+            household=self.household,
+            title="Clean Kitchen",
+            frequency="monthly",
+            point_value=5,
+            next_due_date=date.today(),
+        )
+        with self.assertRaises(ValidationError):
+            chore.full_clean()
+
+    def test_frequency_daily_and_weekly_are_valid(self):
+        """frequency = 'daily' and 'weekly' are valid."""
+        daily_chore = Chore(
+            household=self.household,
+            title="Wash Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+        )
+        daily_chore.full_clean()
+
+        weekly_chore = Chore(
+            household=self.household,
+            title="Mow Lawn",
+            frequency=Chore.Frequency.WEEKLY,
+            point_value=25,
+            next_due_date=date.today(),
+        )
+        weekly_chore.full_clean()
+
+    def test_rotation_members_defaults_to_empty_list(self):
+        """rotation_members defaults to an empty list."""
+        chore = Chore.objects.create(
+            household=self.household,
+            title="Take out Trash",
+            frequency=Chore.Frequency.DAILY,
+            point_value=5,
+            next_due_date=date.today(),
+        )
+        self.assertEqual(chore.rotation_members, [])
+
+    def test_description_is_optional(self):
+        """description is optional (blank is valid)."""
+        chore = Chore(
+            household=self.household,
+            title="Take out Trash",
+            description="",
+            frequency=Chore.Frequency.DAILY,
+            point_value=5,
+            next_due_date=date.today(),
+        )
+        chore.full_clean()
+        chore.save()
+        self.assertEqual(chore.description, "")
+
