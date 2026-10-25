@@ -8,6 +8,7 @@
 <p>
     <a href="{% url 'chores:household_detail' household.pk %}">← Household Details</a>
     | <a href="{% url 'chores:chore_list' household.pk %}">Manage Chores</a>
+    | <a href="{% url 'chores:leaderboard' household.pk %}"><strong>🏆 Leaderboard</strong></a>
 </p>
 
 {% if chore_rows %}

@@ -1,4 +1,5 @@
 from datetime import date
+from django.db.models import Count, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.core.exceptions import PermissionDenied
@@ -363,6 +364,42 @@ def verify_completion(request, pk, completion_pk):
         award_verification_bonus(completion)
 
     return redirect("chores:board", pk=household.pk)
+
+
+@login_required(login_url="/login/")
+def leaderboard_view(request, pk):
+    """Ranked leaderboard of household members."""
+    household = get_object_or_404(Household, pk=pk)
+    is_owner = household.owner == request.user
+    is_member = is_owner or household.memberships.filter(user=request.user).exists()
+    if not is_member:
+        raise PermissionDenied("You are not a member of this household.")
+
+    # Ensure owner has a Membership record if not already created
+    Membership.objects.get_or_create(household=household, user=household.owner)
+
+    memberships = (
+        Membership.objects
+        .filter(household=household)
+        .annotate(
+            completed_chore_count=Count(
+                "user__completions",
+                filter=Q(user__completions__chore__household=household),
+            )
+        )
+        .order_by("-points", "-completed_chore_count", "user__username")
+        .select_related("user")
+    )
+
+    return render(
+        request,
+        "chores/leaderboard.html",
+        {
+            "household": household,
+            "memberships": memberships,
+        },
+    )
+
 
 
 

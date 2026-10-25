@@ -1122,6 +1122,77 @@ class StreaksTrackingTest(TestCase):
         self.member_membership.refresh_from_db()
         self.assertEqual(self.member_membership.current_streak, 1)
 
+
+class LeaderboardViewTest(TestCase):
+    """Tests for GET /households/<pk>/leaderboard/."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member_a = User.objects.create_user(username="alice", password="Password123!")
+        self.member_b = User.objects.create_user(username="bob", password="Password123!")
+        self.stranger = User.objects.create_user(username="stranger", password="Password123!")
+
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.owner_membership = Membership.objects.create(
+            household=self.household, user=self.owner, points=10
+        )
+        self.mem_a = Membership.objects.create(
+            household=self.household, user=self.member_a, points=50
+        )
+        self.mem_b = Membership.objects.create(
+            household=self.household, user=self.member_b, points=50
+        )
+
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+        )
+
+        # Give bob 2 completions, alice 1 completion
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_b)
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_b)
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_a)
+
+    def test_member_can_access_leaderboard(self):
+        """Household member can access leaderboard."""
+        self.client.login(username="alice", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_member_receives_403(self):
+        """Non-member receives 403 on leaderboard."""
+        self.client.login(username="stranger", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user is redirected to login."""
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/leaderboard/")
+
+    def test_members_ranked_by_points_and_ties_broken_by_completions(self):
+        """Bob and Alice have 50 points, but Bob has 2 completions vs Alice's 1; Bob is #1."""
+        self.client.login(username="alice", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        memberships = list(response.context["memberships"])
+
+        # Bob (50 pts, 2 completions) > Alice (50 pts, 1 completion) > Owner (10 pts, 0 completions)
+        self.assertEqual(memberships[0].user, self.member_b)
+        self.assertEqual(memberships[1].user, self.member_a)
+        self.assertEqual(memberships[2].user, self.owner)
+
+    def test_owner_appears_in_leaderboard(self):
+        """Owner appears in the leaderboard."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "owner1")
+
+
         comp2 = ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member)
         self.increment_streak(comp2)
         self.member_membership.refresh_from_db()
@@ -1201,6 +1272,77 @@ class StreaksTrackingTest(TestCase):
         )
         self.member_membership.refresh_from_db()
         self.assertEqual(self.member_membership.current_streak, 1)
+
+
+class LeaderboardViewTest(TestCase):
+    """Tests for GET /households/<pk>/leaderboard/."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.member_a = User.objects.create_user(username="alice", password="Password123!")
+        self.member_b = User.objects.create_user(username="bob", password="Password123!")
+        self.stranger = User.objects.create_user(username="stranger", password="Password123!")
+
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.owner_membership = Membership.objects.create(
+            household=self.household, user=self.owner, points=10
+        )
+        self.mem_a = Membership.objects.create(
+            household=self.household, user=self.member_a, points=50
+        )
+        self.mem_b = Membership.objects.create(
+            household=self.household, user=self.member_b, points=50
+        )
+
+        self.chore = Chore.objects.create(
+            household=self.household,
+            title="Clean Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date.today(),
+        )
+
+        # Give bob 2 completions, alice 1 completion
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_b)
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_b)
+        ChoreCompletion.objects.create(chore=self.chore, completed_by=self.member_a)
+
+    def test_member_can_access_leaderboard(self):
+        """Household member can access leaderboard."""
+        self.client.login(username="alice", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_non_member_receives_403(self):
+        """Non-member receives 403 on leaderboard."""
+        self.client.login(username="stranger", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_redirected_to_login(self):
+        """Anonymous user is redirected to login."""
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertRedirects(response, f"/login/?next=/households/{self.household.pk}/leaderboard/")
+
+    def test_members_ranked_by_points_and_ties_broken_by_completions(self):
+        """Bob and Alice have 50 points, but Bob has 2 completions vs Alice's 1; Bob is #1."""
+        self.client.login(username="alice", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        memberships = list(response.context["memberships"])
+
+        # Bob (50 pts, 2 completions) > Alice (50 pts, 1 completion) > Owner (10 pts, 0 completions)
+        self.assertEqual(memberships[0].user, self.member_b)
+        self.assertEqual(memberships[1].user, self.member_a)
+        self.assertEqual(memberships[2].user, self.owner)
+
+    def test_owner_appears_in_leaderboard(self):
+        """Owner appears in the leaderboard."""
+        self.client.login(username="owner1", password="Password123!")
+        response = self.client.get(reverse("chores:leaderboard", kwargs={"pk": self.household.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "owner1")
+
 
 
 
