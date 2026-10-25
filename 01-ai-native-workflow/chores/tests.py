@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -872,6 +872,100 @@ class VerifyCompletionViewTest(TestCase):
 
         response = self.client.get(reverse("chores:board", kwargs={"pk": self.household.pk}))
         self.assertContains(response, "Done ✓ (verified)")
+
+
+class CarryForwardChoresCommandTest(TestCase):
+    """Tests for the carry_forward_chores management command."""
+
+    def setUp(self):
+        import io
+        from django.core.management import call_command
+        self.call_command = call_command
+        self.StringIO = io.StringIO
+
+        self.owner = User.objects.create_user(username="owner1", password="Password123!")
+        self.household = Household.objects.create(name="Smith Family", owner=self.owner)
+        self.member = User.objects.create_user(username="member1", password="Password123!")
+        Membership.objects.create(household=self.household, user=self.owner)
+        Membership.objects.create(household=self.household, user=self.member)
+
+        # Chore due in the past relative to ref date 2026-11-05
+        self.overdue_chore = Chore.objects.create(
+            household=self.household,
+            title="Overdue Dishes",
+            frequency=Chore.Frequency.DAILY,
+            point_value=5,
+            next_due_date=date(2026, 11, 2),
+            rotation_members=[self.member.pk],
+        )
+        # Chore due on reference date
+        self.today_chore = Chore.objects.create(
+            household=self.household,
+            title="Today Laundry",
+            frequency=Chore.Frequency.DAILY,
+            point_value=10,
+            next_due_date=date(2026, 11, 5),
+            rotation_members=[self.owner.pk],
+        )
+        # Chore due in the future
+        self.future_chore = Chore.objects.create(
+            household=self.household,
+            title="Future Garden",
+            frequency=Chore.Frequency.WEEKLY,
+            point_value=20,
+            next_due_date=date(2026, 11, 10),
+            rotation_members=[self.member.pk],
+        )
+
+    def test_overdue_chore_with_no_completion_is_flagged_without_changing_date(self):
+        """Overdue chore with no completion is reported and due date is preserved."""
+        out = self.StringIO()
+        self.call_command("carry_forward_chores", date="2026-11-05", stdout=out)
+        output = out.getvalue()
+        self.assertIn("Overdue Dishes", output)
+        self.assertIn("1 overdue chore(s) found", output)
+
+        self.overdue_chore.refresh_from_db()
+        self.assertEqual(self.overdue_chore.next_due_date, date(2026, 11, 2))
+
+    def test_chore_with_completion_in_current_period_is_not_flagged(self):
+        """Chore with completion for its period is not flagged as overdue."""
+        # Create completion for overdue_chore
+        completion = ChoreCompletion.objects.create(
+            chore=self.overdue_chore,
+            completed_by=self.member,
+        )
+        # Manually backdate completed_at to match period
+        from django.utils import timezone
+        ChoreCompletion.objects.filter(pk=completion.pk).update(
+            completed_at=timezone.make_aware(datetime(2026, 11, 2, 12, 0))
+        )
+
+        out = self.StringIO()
+        self.call_command("carry_forward_chores", date="2026-11-05", stdout=out)
+        output = out.getvalue()
+        self.assertNotIn("Overdue Dishes", output)
+
+    def test_due_today_and_future_chores_are_not_flagged(self):
+        """Chores due today or in future are not flagged as overdue."""
+        out = self.StringIO()
+        self.call_command("carry_forward_chores", date="2026-11-05", stdout=out)
+        output = out.getvalue()
+        self.assertNotIn("Today Laundry", output)
+        self.assertNotIn("Future Garden", output)
+
+    def test_command_is_idempotent(self):
+        """Running the command multiple times produces identical output and changes nothing."""
+        out1 = self.StringIO()
+        self.call_command("carry_forward_chores", date="2026-11-05", stdout=out1)
+
+        out2 = self.StringIO()
+        self.call_command("carry_forward_chores", date="2026-11-05", stdout=out2)
+
+        self.assertEqual(out1.getvalue(), out2.getvalue())
+        self.overdue_chore.refresh_from_db()
+        self.assertEqual(self.overdue_chore.next_due_date, date(2026, 11, 2))
+
 
 
 

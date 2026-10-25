@@ -7,6 +7,25 @@ def get_period_delta(frequency: str) -> timedelta:
     return timedelta(days=1)
 
 
+def get_period_window(next_due_date: date, frequency: str):
+    delta = get_period_delta(frequency)
+    return next_due_date, next_due_date + delta
+
+
+def chore_has_completion_for_period(chore, period_start=None) -> bool:
+    if not hasattr(chore, "completions"):
+        return False
+    if period_start is None:
+        period_start = chore.next_due_date
+    delta = get_period_delta(chore.frequency)
+    start = period_start
+    end = period_start + delta
+    return chore.completions.filter(
+        completed_at__date__gte=start,
+        completed_at__date__lt=end,
+    ).exists()
+
+
 def get_chore_status(chore, reference_date=None) -> str:
     """
     Determine whether a chore is 'Done', 'Overdue', or 'Pending'.
