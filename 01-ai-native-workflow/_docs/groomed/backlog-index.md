@@ -9,20 +9,20 @@ All 15 issues groomed. Each issue file lives alongside this index in the artifac
 | # | Issue | Status | Depends On |
 |---|---|---|---|
 | 1 | Project setup with a passing test | ✅ Done | — |
-| 2 | User registration and login | ⬜ Ready | #1 |
-| 3 | Household model and creation | ⬜ Blocked | #2 |
-| 4 | Join a household via invite code | ⬜ Blocked | #2, #3 |
-| 5 | Chore model | ⬜ Blocked | #3, #4 |
-| 6 | Chore management — create, edit, delete | ⬜ Blocked | #2, #3, #4, #5 |
-| 7 | Chore rotation logic | ⬜ Blocked (contract from #5) | #5 |
-| 8 | Shared household board | ⬜ Blocked | #3, #4, #5, #7 |
-| 9 | Mark a chore as complete | ⬜ Blocked | #5, #7, #8 |
-| 10 | Verify chore completion | ⬜ Blocked | #8, #9 |
-| 11 | Carry-forward pending chores | ⬜ Blocked | #5, #8, #9 |
-| 12 | Points tracking | ⬜ Blocked | #4, #9, #10 |
-| 13 | Streaks | ⬜ Blocked | #4, #9, #11, #12 |
-| 14 | Leaderboard | ⬜ Blocked | #4, #8, #9, #12, #13 |
-| 15 | PWA — manifest and service worker | ⬜ Blocked (on #2) | #2 (base template) |
+| 2 | User registration and login | ✅ Done | #1 |
+| 3 | Household model and creation | ✅ Done | #2 |
+| 4 | Join a household via invite code | ✅ Done | #2, #3 |
+| 5 | Chore model | ✅ Done | #3, #4 |
+| 6 | Chore management — create, edit, delete | ✅ Done | #2, #3, #4, #5 |
+| 7 | Chore rotation logic | ✅ Done | #5 |
+| 8 | Shared household board | ✅ Done | #3, #4, #5, #7 |
+| 9 | Mark a chore as complete | ✅ Done | #5, #7, #8 |
+| 10 | Verify chore completion | ✅ Done | #8, #9 |
+| 11 | Carry-forward pending chores | ✅ Done | #5, #8, #9 |
+| 12 | Points tracking | ✅ Done | #4, #9, #10 |
+| 13 | Streaks | ✅ Done | #4, #9, #11, #12 |
+| 14 | Leaderboard | ✅ Done | #4, #8, #9, #12, #13 |
+| 15 | PWA — manifest and service worker | ✅ Done | #2 (base template) |
 
 ---
 
