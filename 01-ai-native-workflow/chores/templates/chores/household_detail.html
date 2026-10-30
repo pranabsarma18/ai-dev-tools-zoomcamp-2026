@@ -3,25 +3,58 @@
 {% block title %}{{ household.name }} — Household Chores{% endblock %}
 
 {% block content %}
-<h2>{{ household.name }}</h2>
-<p><strong>Owner:</strong> {{ household.owner.username }}</p>
-<p><strong>Invite Code:</strong> <code>{{ household.invite_code }}</code></p>
-<p>Share this invite code with other members to invite them to this household.</p>
+<div class="subnav">
+    <a href="{% url 'chores:dashboard' %}" class="btn btn-secondary btn-sm">&larr; Dashboard</a>
+</div>
 
-<p>
-    <a href="{% url 'chores:board' household.pk %}"><strong>View Chore Board</strong></a> |
-    <a href="{% url 'chores:chore_list' household.pk %}">View Chores</a>
-    {% if household.owner == user %}
-        | <a href="{% url 'chores:chore_create' household.pk %}">Add New Chore</a>
-    {% endif %}
-</p>
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2>🏡 {{ household.name }}</h2>
+            <p style="margin-bottom: 0;"><strong>Owner:</strong> {{ household.owner.username }}</p>
+        </div>
+        <div class="subnav" style="margin-bottom: 0;">
+            <a href="{% url 'chores:board' household.pk %}" class="btn btn-primary">📋 View Chore Board</a>
+            <a href="{% url 'chores:leaderboard' household.pk %}" class="btn btn-secondary">🏆 Leaderboard</a>
+            <a href="{% url 'chores:chore_list' household.pk %}" class="btn btn-secondary">View Chores</a>
+            {% if household.owner == user %}
+                <a href="{% url 'chores:chore_create' household.pk %}" class="btn btn-secondary">+ Add New Chore</a>
+            {% endif %}
+        </div>
+    </div>
 
-<h3>Members</h3>
-<ul>
-    {% for member in members %}
-        <li>{{ member.username }}{% if member == household.owner %} <em>(Owner)</em>{% endif %}</li>
-    {% empty %}
-        <li>No members yet.</li>
-    {% endfor %}
-</ul>
+    <div class="invite-box">
+        <div>
+            <div class="stat-label">Household Invite Code</div>
+            <div class="invite-code"><code>{{ household.invite_code }}</code></div>
+            <small style="color: var(--text-muted);">Share this code with roommates to invite them to this household.</small>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('{{ household.invite_code }}').then(() => { this.innerText = 'Copied! ✓'; setTimeout(() => { this.innerText = 'Copy Code'; }, 2000); });">
+            Copy Code
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">Household Members ({{ members|length }})</h3>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for member in members %}
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background-color: var(--background); border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 1.25rem;">👤</span>
+                    <span style="font-weight: 600;">{{ member.username }}</span>
+                </div>
+                <div>
+                    {% if member == household.owner %}
+                        <span class="badge badge-verified">👑 Owner</span>
+                    {% else %}
+                        <span class="badge badge-pending">Member</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <p>No members yet.</p>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

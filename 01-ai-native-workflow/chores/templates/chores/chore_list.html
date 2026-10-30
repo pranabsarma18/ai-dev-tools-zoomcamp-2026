@@ -3,53 +3,76 @@
 {% block title %}Chores — {{ household.name }}{% endblock %}
 
 {% block content %}
-<h2>Chores for {{ household.name }}</h2>
-
-<p>
-    <a href="{% url 'chores:household_detail' household.pk %}">← Back to Household</a>
-    {% if is_owner %}
-        | <a href="{% url 'chores:chore_create' household.pk %}">+ Add New Chore</a>
-    {% endif %}
-</p>
+<div class="card-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h2>⚙️ Manage Chores — {{ household.name }}</h2>
+        <p style="margin-bottom: 0;">Configure household chores, frequencies, and points</p>
+    </div>
+    <div class="subnav" style="margin-bottom: 0;">
+        <a href="{% url 'chores:household_detail' household.pk %}" class="btn btn-secondary btn-sm">&larr; Back to Household</a>
+        <a href="{% url 'chores:board' household.pk %}" class="btn btn-secondary btn-sm">📋 View Board</a>
+        {% if is_owner %}
+            <a href="{% url 'chores:chore_create' household.pk %}" class="btn btn-primary btn-sm">+ Add New Chore</a>
+        {% endif %}
+    </div>
+</div>
 
 {% if chores %}
-    <table border="1" cellpadding="6" style="border-collapse: collapse; width: 100%;">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Frequency</th>
-                <th>Points</th>
-                <th>Next Due Date</th>
-                {% if is_owner %}
-                    <th>Actions</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for chore in chores %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
                 <tr>
-                    <td>
-                        <strong>{{ chore.title }}</strong>
-                        {% if chore.description %}<br><small>{{ chore.description }}</small>{% endif %}
-                    </td>
-                    <td>{{ chore.get_frequency_display }}</td>
-                    <td>{{ chore.point_value }}</td>
-                    <td>{{ chore.next_due_date }}</td>
+                    <th>Title</th>
+                    <th>Frequency</th>
+                    <th>Points</th>
+                    <th>Next Due Date</th>
                     {% if is_owner %}
-                        <td>
-                            <a href="{% url 'chores:chore_edit' household.pk chore.pk %}">Edit</a>
-                            |
-                            <form method="post" action="{% url 'chores:chore_delete' household.pk chore.pk %}" style="display:inline;" onsubmit="return confirm('Delete this chore?');">
-                                {% csrf_token %}
-                                <button type="submit" style="color: red;">Delete</button>
-                            </form>
-                        </td>
+                        <th>Actions</th>
                     {% endif %}
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for chore in chores %}
+                    <tr>
+                        <td>
+                            <strong style="color: var(--text-main);">{{ chore.title }}</strong>
+                            {% if chore.description %}
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">{{ chore.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-pending">{{ chore.get_frequency_display }}</span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: var(--primary);">⭐ {{ chore.point_value }}</span>
+                        </td>
+                        <td>
+                            <span style="font-size: 0.9rem;">{{ chore.next_due_date }}</span>
+                        </td>
+                        {% if is_owner %}
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <a href="{% url 'chores:chore_edit' household.pk chore.pk %}" class="btn btn-secondary btn-sm">✏️ Edit</a>
+                                    <form method="post" action="{% url 'chores:chore_delete' household.pk chore.pk %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this chore?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% else %}
-    <p>No chores defined for this household yet.</p>
+    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 1rem;">🧹</div>
+        <h3>No chores defined yet</h3>
+        <p style="margin-bottom: 1.5rem;">No chores have been added for this household yet.</p>
+        {% if is_owner %}
+            <a href="{% url 'chores:chore_create' household.pk %}" class="btn btn-primary">+ Add New Chore</a>
+        {% endif %}
+    </div>
 {% endif %}
 {% endblock %}

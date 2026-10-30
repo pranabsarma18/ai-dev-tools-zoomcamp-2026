@@ -3,18 +3,36 @@
 {% block title %}Create Household — Household Chores{% endblock %}
 
 {% block content %}
-<h2>Create a Household</h2>
+<div style="max-width: 520px; margin: 2rem auto;">
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 1.5rem;">
+            <div>
+                <h2>Create a Household</h2>
+                <p style="margin-bottom: 0;">Set up a new space for your roommates or family</p>
+            </div>
+        </div>
 
-{% if error %}
-    <p style="color: red;"><strong>{{ error }}</strong></p>
-    {% if existing_household %}
-        <p><a href="{% url 'chores:household_detail' existing_household.pk %}">View your household: {{ existing_household.name }}</a></p>
-    {% endif %}
-{% else %}
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Create Household</button>
-    </form>
-{% endif %}
+        {% if error %}
+            <div class="alert alert-danger">
+                <strong>{{ error }}</strong>
+            </div>
+            {% if existing_household %}
+                <p>
+                    <a href="{% url 'chores:household_detail' existing_household.pk %}" class="btn btn-secondary">
+                        View your household: {{ existing_household.name }} &rarr;
+                    </a>
+                </p>
+            {% endif %}
+        {% else %}
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary">Create Household</button>
+                    <a href="{% url 'chores:dashboard' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

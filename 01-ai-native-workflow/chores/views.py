@@ -20,8 +20,8 @@ from .streaks import increment_streak
 
 
 def index(request):
-    """Placeholder home page."""
-    return HttpResponse("<h1>Shared Household Chores</h1>")
+    """Landing / Home page."""
+    return render(request, "chores/home.html")
 
 
 def register_view(request):

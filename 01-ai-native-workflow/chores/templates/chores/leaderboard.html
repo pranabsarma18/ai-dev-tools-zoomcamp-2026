@@ -3,41 +3,79 @@
 {% block title %}Leaderboard — {{ household.name }}{% endblock %}
 
 {% block content %}
-<h2>{{ household.name }} — Leaderboard</h2>
-
-<p>
-    <a href="{% url 'chores:board' household.pk %}">← Chore Board</a>
-    | <a href="{% url 'chores:household_detail' household.pk %}">Household Details</a>
-</p>
+<div class="card-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h2>🏆 Leaderboard — {{ household.name }}</h2>
+        <p style="margin-bottom: 0;">See who's doing the most work and holding the highest streak</p>
+    </div>
+    <div class="subnav" style="margin-bottom: 0;">
+        <a href="{% url 'chores:board' household.pk %}" class="btn btn-secondary btn-sm">&larr; Chore Board</a>
+        <a href="{% url 'chores:household_detail' household.pk %}" class="btn btn-secondary btn-sm">Household Details</a>
+    </div>
+</div>
 
 {% if memberships %}
-    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%;">
-        <thead>
-            <tr style="background-color: #f3f4f6;">
-                <th>Rank</th>
-                <th>Name</th>
-                <th>Total Points</th>
-                <th>Completed Chores</th>
-                <th>Current Streak</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in memberships %}
-                <tr {% if m.user == user %}style="background-color: #ecfdf5; font-weight: bold;"{% endif %}>
-                    <td>{{ forloop.counter }}</td>
-                    <td>
-                        {{ m.user.username }}
-                        {% if m.user == household.owner %}<em>(Owner)</em>{% endif %}
-                        {% if m.user == user %}<em>(You)</em>{% endif %}
-                    </td>
-                    <td>{{ m.points }}</td>
-                    <td>{{ m.completed_chore_count }}</td>
-                    <td>{{ m.current_streak }} 🔥</td>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Rank</th>
+                    <th>Member</th>
+                    <th>Total Points</th>
+                    <th>Completed Chores</th>
+                    <th>Current Streak</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for m in memberships %}
+                    <tr {% if m.user == user %}class="highlight-user"{% endif %}>
+                        <td>
+                            {% if forloop.counter == 1 %}
+                                <span style="font-size: 1.3rem;">🥇</span>
+                            {% elif forloop.counter == 2 %}
+                                <span style="font-size: 1.3rem;">🥈</span>
+                            {% elif forloop.counter == 3 %}
+                                <span style="font-size: 1.3rem;">🥉</span>
+                            {% else %}
+                                <span style="font-weight: 700; color: var(--text-muted); padding-left: 0.25rem;">#{{ forloop.counter }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.1rem;">👤</span>
+                                <strong style="color: var(--text-main);">{{ m.user.username }}</strong>
+                                {% if m.user == household.owner %}
+                                    <span class="badge badge-pending" style="font-size: 0.75rem;">Owner</span>
+                                {% endif %}
+                                {% if m.user == user %}
+                                    <span class="badge badge-verified" style="font-size: 0.75rem;">You</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 800; font-size: 1.05rem; color: var(--primary);">⭐ {{ m.points }}</span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600;">{{ m.completed_chore_count }}</span>
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">done</span>
+                        </td>
+                        <td>
+                            {% if m.current_streak > 0 %}
+                                <span class="badge badge-unverified" style="font-weight: 700;">🔥 {{ m.current_streak }} period{{ m.current_streak|pluralize }}</span>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">0 🔥</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% else %}
-    <p>No members found.</p>
+    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 1rem;">🏆</div>
+        <h3>No members found</h3>
+        <p style="margin-bottom: 0;">Invite household members to start competing on the leaderboard.</p>
+    </div>
 {% endif %}
 {% endblock %}

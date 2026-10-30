@@ -1,80 +1,113 @@
 {% extends "chores/base.html" %}
 
-{% block title %}Board — {{ household.name }}{% endblock %}
+{% block title %}Chore Board — {{ household.name }}{% endblock %}
 
 {% block content %}
-<h2>{{ household.name }} — Chore Board</h2>
-
-<p>
-    <a href="{% url 'chores:household_detail' household.pk %}">← Household Details</a>
-    | <a href="{% url 'chores:chore_list' household.pk %}">Manage Chores</a>
-    | <a href="{% url 'chores:leaderboard' household.pk %}"><strong>🏆 Leaderboard</strong></a>
-</p>
+<div class="card-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h2>📋 {{ household.name }} — Chore Board</h2>
+        <p style="margin-bottom: 0;">Track, complete, and verify household tasks</p>
+    </div>
+    <div class="subnav" style="margin-bottom: 0;">
+        <a href="{% url 'chores:household_detail' household.pk %}" class="btn btn-secondary btn-sm">&larr; Household Details</a>
+        <a href="{% url 'chores:chore_list' household.pk %}" class="btn btn-secondary btn-sm">⚙️ Manage Chores</a>
+        <a href="{% url 'chores:leaderboard' household.pk %}" class="btn btn-primary btn-sm">🏆 Leaderboard</a>
+    </div>
+</div>
 
 {% if chore_rows %}
-    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%;">
-        <thead>
-            <tr style="background-color: #f3f4f6;">
-                <th>Chore</th>
-                <th>Frequency</th>
-                <th>Points</th>
-                <th>Due Date</th>
-                <th>Responsible</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in chore_rows %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
                 <tr>
-                    <td>
-                        <strong>{{ row.chore.title }}</strong>
-                        {% if row.chore.description %}<br><small>{{ row.chore.description }}</small>{% endif %}
-                    </td>
-                    <td>{{ row.chore.get_frequency_display }}</td>
-                    <td>{{ row.chore.point_value }}</td>
-                    <td>{{ row.chore.next_due_date }}</td>
-                    <td>
-                        {% if row.responsible_member %}
-                            {{ row.responsible_member.username }}
-                        {% else %}
-                            <em>Unassigned</em>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if "verified" in row.display_status %}
-                            <span style="color: green; font-weight: bold;">{{ row.display_status }}</span>
-                        {% elif "unverified" in row.display_status %}
-                            <span style="color: #d97706; font-weight: bold;">{{ row.display_status }}</span>
-                        {% elif row.status == "Overdue" %}
-                            <span style="color: red; font-weight: bold;">Overdue</span>
-                        {% else %}
-                            <span style="color: #4b5563; font-weight: bold;">Pending</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if row.can_complete %}
-                            <form method="post" action="{% url 'chores:complete_chore' household.pk row.chore.pk %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" style="background-color: #10b981; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
-                                    Mark Complete
-                                </button>
-                            </form>
-                        {% endif %}
-                        {% if row.can_verify %}
-                            <form method="post" action="{% url 'chores:verify_completion' household.pk row.latest_completion.pk %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" style="background-color: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
-                                    Verify
-                                </button>
-                            </form>
-                        {% endif %}
-                    </td>
+                    <th>Chore</th>
+                    <th>Frequency</th>
+                    <th>Points</th>
+                    <th>Due Date</th>
+                    <th>Responsible</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for row in chore_rows %}
+                    <tr {% if row.responsible_member == user %}class="highlight-user"{% endif %}>
+                        <td>
+                            <strong style="color: var(--text-main);">{{ row.chore.title }}</strong>
+                            {% if row.chore.description %}
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">{{ row.chore.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-pending">{{ row.chore.get_frequency_display }}</span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: var(--primary);">⭐ {{ row.chore.point_value }}</span>
+                        </td>
+                        <td>
+                            <span style="font-size: 0.9rem;">{{ row.chore.next_due_date }}</span>
+                        </td>
+                        <td>
+                            {% if row.responsible_member %}
+                                <span style="font-weight: 600;">
+                                    👤 {{ row.responsible_member.username }}
+                                    {% if row.responsible_member == user %}
+                                        <small style="color: var(--primary); font-weight: 700;">(You)</small>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-style: italic;">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if "verified" in row.display_status %}
+                                <span class="badge badge-verified">{{ row.display_status }}</span>
+                            {% elif "unverified" in row.display_status %}
+                                <span class="badge badge-unverified">{{ row.display_status }}</span>
+                            {% elif row.status == "Overdue" %}
+                                <span class="badge badge-overdue">Overdue</span>
+                            {% else %}
+                                <span class="badge badge-pending">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                {% if row.can_complete %}
+                                    <form method="post" action="{% url 'chores:complete_chore' household.pk row.chore.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            ✓ Mark Complete
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                {% if row.can_verify %}
+                                    <form method="post" action="{% url 'chores:verify_completion' household.pk row.latest_completion.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-info btn-sm">
+                                            🛡️ Verify
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                {% if not row.can_complete and not row.can_verify %}
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% else %}
-    <p>No chores on the board yet. Add some chores to get started!</p>
+    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 1rem;">🧹</div>
+        <h3>No chores on the board yet</h3>
+        <p style="margin-bottom: 1.5rem;">Add some chores to your household to start tracking responsibilities.</p>
+        {% if household.owner == user %}
+            <a href="{% url 'chores:chore_create' household.pk %}" class="btn btn-primary">+ Add First Chore</a>
+        {% else %}
+            <a href="{% url 'chores:chore_list' household.pk %}" class="btn btn-secondary">View Chore List</a>
+        {% endif %}
+    </div>
 {% endif %}
 {% endblock %}

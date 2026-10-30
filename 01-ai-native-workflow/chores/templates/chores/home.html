@@ -1,0 +1,43 @@
+{% extends "chores/base.html" %}
+
+{% block title %}Shared Household Chores — Keep Your Home in Harmony{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Shared Household Chores</h1>
+    <p>Keep your shared space clean, fair, and organized. Rotate chores effortlessly, track completions, and earn points with your household members.</p>
+    <div class="hero-actions">
+        {% if user.is_authenticated %}
+            <a href="{% url 'chores:dashboard' %}" class="btn btn-primary">Go to Dashboard &rarr;</a>
+        {% else %}
+            <a href="{% url 'chores:register' %}" class="btn btn-primary">Get Started Free</a>
+            <a href="{% url 'chores:login' %}" class="btn btn-secondary">Sign In</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="features-section" style="margin-top: 3rem;">
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+        <div class="stat-card" style="text-align: left;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+            <h3 style="margin-bottom: 0.5rem;">Fair Rotation</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">Chores automatically rotate between members each period so everyone carries their fair share.</p>
+        </div>
+        <div class="stat-card" style="text-align: left;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
+            <h3 style="margin-bottom: 0.5rem;">Live Chore Board</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">See who is responsible for what, when chores are due, and track real-time completion status.</p>
+        </div>
+        <div class="stat-card" style="text-align: left;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏆</div>
+            <h3 style="margin-bottom: 0.5rem;">Points & Streaks</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">Earn points when you finish chores, verify tasks done by others, and climb the household leaderboard.</p>
+        </div>
+        <div class="stat-card" style="text-align: left;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📱</div>
+            <h3 style="margin-bottom: 0.5rem;">PWA & Offline Ready</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">Install directly to your mobile home screen. Fast, light, responsive, and works anywhere.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

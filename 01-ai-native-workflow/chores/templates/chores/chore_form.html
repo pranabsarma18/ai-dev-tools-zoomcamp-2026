@@ -3,12 +3,23 @@
 {% block title %}{{ action }} Chore — {{ household.name }}{% endblock %}
 
 {% block content %}
-<h2>{{ action }} Chore for {{ household.name }}</h2>
+<div style="max-width: 600px; margin: 1.5rem auto;">
+    <div class="card">
+        <div class="card-header" style="margin-bottom: 1.5rem;">
+            <div>
+                <h2>{{ action }} Chore</h2>
+                <p style="margin-bottom: 0;">For household: <strong>{{ household.name }}</strong></p>
+            </div>
+        </div>
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">{{ action }} Chore</button>
-    <a href="{% url 'chores:chore_list' household.pk %}">Cancel</a>
-</form>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">{{ action }} Chore</button>
+                <a href="{% url 'chores:chore_list' household.pk %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

@@ -3,16 +3,39 @@
 {% block title %}Dashboard — Household Chores{% endblock %}
 
 {% block content %}
-<h2>Welcome, {{ user.username }}!</h2>
+<div class="card-header" style="margin-bottom: 2rem;">
+    <div>
+        <h2>Welcome, {{ user.username }}! 👋</h2>
+        <p style="margin-bottom: 0;">Here is what's happening with your chores today.</p>
+    </div>
+</div>
 
 {% if household %}
-    <p>You belong to household: <strong>{{ household.name }}</strong></p>
-    <p><a href="{% url 'chores:household_detail' household.pk %}">Go to Household Details</a></p>
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <div class="card-header">
+            <div>
+                <span class="stat-label">Current Household</span>
+                <h3 style="font-size: 1.5rem; margin-top: 0.25rem;">🏡 {{ household.name }}</h3>
+                <p style="margin-bottom: 0; margin-top: 0.25rem;">You are a member of <strong>{{ household.name }}</strong>.</p>
+            </div>
+            <div class="subnav" style="margin-bottom: 0;">
+                <a href="{% url 'chores:board' household.pk %}" class="btn btn-primary">📋 Chore Board</a>
+                <a href="{% url 'chores:household_detail' household.pk %}" class="btn btn-secondary">Household Details</a>
+                <a href="{% url 'chores:leaderboard' household.pk %}" class="btn btn-secondary">🏆 Leaderboard</a>
+            </div>
+        </div>
+    </div>
 {% else %}
-    <p>You do not belong to any household yet.</p>
-    <p>
-        <a href="{% url 'chores:create_household' %}">Create a Household</a> |
-        <a href="{% url 'chores:join_household' %}">Join a Household</a>
-    </p>
+    <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🏡</div>
+        <h3>No Household Found</h3>
+        <p style="max-width: 480px; margin: 0.5rem auto 1.75rem;">
+            You do not belong to any household yet. Create a new household or join an existing one using an invite code to start managing chores.
+        </p>
+        <div class="hero-actions">
+            <a href="{% url 'chores:create_household' %}" class="btn btn-primary">Create a Household</a>
+            <a href="{% url 'chores:join_household' %}" class="btn btn-secondary">Join a Household</a>
+        </div>
+    </div>
 {% endif %}
 {% endblock %}
